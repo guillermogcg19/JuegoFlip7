@@ -14,6 +14,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class ServidorFlip7 {
 
     public static final int PUERTO = 5000;
+    private static final Database db = new Database();
+public static Database getDB() { return db; }
+
 
     // Lista de clientes conectados (para broadcast más adelante)
     private static final CopyOnWriteArrayList<ClienteHandler> clientes = new CopyOnWriteArrayList<>();

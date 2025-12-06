@@ -22,44 +22,71 @@ public class ClienteHandler extends Thread {
         this.socket = socket;
     }
 
-    @Override
-    public void run() {
-        try {
-            entrada = new DataInputStream(socket.getInputStream());
-            salida = new DataOutputStream(socket.getOutputStream());
+@Override
+public void run() {
+    try {
+        entrada = new DataInputStream(socket.getInputStream());
+        salida = new DataOutputStream(socket.getOutputStream());
 
-            // Pedimos nombre simple (después lo conectamos a la BD)
-            enviar("Bienvenido al servidor Flip7.");
-            enviar("Escribe tu nombre de jugador:");
+        enviar("===== Sistema de Autenticación Flip7 =====");
+        enviar("1) Iniciar sesión");
+        enviar("2) Registrarse");
+        enviar("Selecciona una opción (1 o 2):");
 
-            nombre = entrada.readUTF();
-            System.out.println("Jugador conectado como: " + nombre);
+        int opcion = Integer.parseInt(entrada.readUTF());
 
-            ServidorFlip7.broadcast("[sistema] " + nombre + " se ha unido al servidor.", this);
-            enviar("[sistema] Escribe mensajes para el chat. Usa /salir para desconectarte.");
+        while (true) {
+            enviar("Nombre de usuario:");
+            String nombreInput = entrada.readUTF();
 
-            String mensaje;
+            enviar("Contraseña:");
+            String pass = entrada.readUTF();
 
-            while (true) {
-                mensaje = entrada.readUTF();
-
-                if (mensaje.equalsIgnoreCase("/salir")) {
-                    enviar("[sistema] Desconectando...");
+            if (opcion == 1) { // login
+                if (ServidorFlip7.getDB().validarLogin(nombreInput, pass)) {
+                    nombre = nombreInput;
+                    enviar("[sistema] Inicio de sesión exitoso. Bienvenido " + nombre + "!");
                     break;
+                } else {
+                    enviar("[error] Usuario o contraseña incorrectos. Intenta otra vez.");
                 }
 
-                // Por ahora solo reenviamos al resto (chat general)
-                String salidaChat = nombre + ": " + mensaje;
-                System.out.println("Mensaje recibido de " + nombre + ": " + mensaje);
-                ServidorFlip7.broadcast(salidaChat, this);
+            } else if (opcion == 2) { // registro
+                if (ServidorFlip7.getDB().registrarUsuario(nombreInput, pass)) {
+                    nombre = nombreInput;
+                    enviar("[sistema] Registro exitoso. Bienvenido " + nombre + "!");
+                    break;
+                } else {
+                    enviar("[error] Ese usuario ya existe. Intenta con otro.");
+                }
+            }
+        }
+
+        System.out.println("Jugador conectado como: " + nombre);
+
+        ServidorFlip7.broadcast("[sistema] " + nombre + " se ha unido al servidor.", this);
+        enviar("[sistema] Ya estás autenticado. Usa /salir para desconectarte.");
+
+        String mensaje;
+
+        while (true) {
+            mensaje = entrada.readUTF();
+
+            if (mensaje.equalsIgnoreCase("/salir")) {
+                enviar("[sistema] Desconectando...");
+                break;
             }
 
-        } catch (IOException e) {
-            System.err.println("Error con el cliente " + nombre + ": " + e.getMessage());
-        } finally {
-            cerrar();
+            ServidorFlip7.broadcast(nombre + ": " + mensaje, this);
         }
+
+    } catch (Exception e) {
+        System.err.println("Error con cliente " + nombre + ": " + e.getMessage());
+    } finally {
+        cerrar();
     }
+}
+
 
     public void enviar(String mensaje) {
         try {
