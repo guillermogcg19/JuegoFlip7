@@ -17,7 +17,7 @@ public class ClienteHandler extends Thread {
     private DataInputStream entrada;
     private DataOutputStream salida;
     private String nombre;
-
+private Sala SalaActual;
     public ClienteHandler(Socket socket) {
         this.socket = socket;
     }
@@ -77,16 +77,58 @@ public void run() {
                 break;
             }
 
-            ServidorFlip7.broadcast(nombre + ": " + mensaje, this);
+            SalaActual.broadcast(nombre + ": " + mensaje);
         }
+        
 
     } catch (Exception e) {
         System.err.println("Error con cliente " + nombre + ": " + e.getMessage());
     } finally {
         cerrar();
     }
+
+ enviar("=== Selección de sala ===");
+enviar("1) Ver salas");
+enviar("2) Unirse o crear una sala");
+enviar("Escribe 1 o 2:");
+
+int opcionSala = 0;
+
+try {
+    opcionSala = Integer.parseInt(entrada.readUTF());
+} catch (Exception e) {
+    enviar("[error] Entrada inválida. Se asignará opción 2 por defecto.");
+    opcionSala = 2;
 }
 
+if (opcionSala == 1) {
+    enviar(GestorSalas.listarSalas());
+}
+
+enviar("Escribe el nombre de la sala a la que deseas entrar:");
+String nombreSala;
+
+try {
+    nombreSala = entrada.readUTF();
+} catch (Exception e) {
+    enviar("[error] No se pudo leer el nombre de la sala. Se usará 'SalaDefault'.");
+    nombreSala = "SalaDefault";
+}
+
+// Obtener sala (si no existe, se crea)
+SalaActual = GestorSalas.obtenerOScrear(nombreSala);
+
+// Intentar entrar como jugador
+if (SalaActual.agregarJugador(this)) {
+    enviar("Te uniste como JUGADOR a la sala: " + nombreSala);
+    SalaActual.broadcast("[sistema] " + nombre + " se unió como jugador.");
+} else {
+    // Si ya hay 6, entra como espectador
+    SalaActual.agregarEspectador(this);
+    enviar("La sala está llena. Entraste como ESPECTADOR en: " + nombreSala);
+    SalaActual.broadcast("[sistema] " + nombre + " se unió como espectador.");
+}
+}
 
     public void enviar(String mensaje) {
         try {
@@ -96,6 +138,7 @@ public void run() {
         } catch (IOException e) {
             System.err.println("No se pudo enviar mensaje a " + nombre + ": " + e.getMessage());
         }
+       
     }
 
     private void cerrar() {
@@ -106,8 +149,12 @@ public void run() {
             }
 
             ServidorFlip7.removerCliente(this);
-
+if (SalaActual != null ){
+SalaActual.removerCliente(this);
+SalaActual.broadcast("[sistema] " + nombre + " salió de la sala.");
+}
             if (socket != null && !socket.isClosed()) {
+                
                 socket.close();
             }
 
