@@ -92,12 +92,13 @@ public void run() {
 
     if (mensaje.equalsIgnoreCase("/ayuda")) {
         enviar("""
-            === Comandos disponibles ===
-            /ayuda        → Muestra este menú
-            /lista        → Ver jugadores y espectadores
-            /renombrar X  → Cambiar tu nombre a X
-            /salir        → Salir del servidor
-            """);
+===== Bienvenido al chat =====
+Comandos disponibles:
+/ayuda   Ver comandos
+/lista   Ver jugadores/espectadores
+/renombrar NUEVO_NOMBRE
+/salir
+""");
         continue;
     }
 
