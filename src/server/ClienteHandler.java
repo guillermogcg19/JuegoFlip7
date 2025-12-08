@@ -70,15 +70,40 @@ public void run() {
         String mensaje;
 
         while (true) {
-            mensaje = entrada.readUTF();
+    mensaje = entrada.readUTF().trim();
 
-            if (mensaje.equalsIgnoreCase("/salir")) {
-                enviar("[sistema] Desconectando...");
-                break;
-            }
+    // ----------------- COMANDOS -----------------
+    if (mensaje.equalsIgnoreCase("/salir")) {
+        enviar("[sistema] Saliendo del servidor...");
+        break;
+    }
 
-            SalaActual.broadcast(nombre + ": " + mensaje);
-        }
+    if (mensaje.equalsIgnoreCase("/lista")) {
+        enviar(SalaActual.resumenCompleto());
+        continue;
+    }
+
+    if (mensaje.startsWith("/renombrar ")) {
+        String nuevoNombre = mensaje.replace("/renombrar ", "").trim();
+        SalaActual.broadcast("[sistema] " + nombre + " ahora es " + nuevoNombre);
+        nombre = nuevoNombre;
+        continue;
+    }
+
+    if (mensaje.equalsIgnoreCase("/ayuda")) {
+        enviar("""
+            === Comandos disponibles ===
+            /ayuda        → Muestra este menú
+            /lista        → Ver jugadores y espectadores
+            /renombrar X  → Cambiar tu nombre a X
+            /salir        → Salir del servidor
+            """);
+        continue;
+    }
+
+    // ----------------- CHAT NORMAL -----------------
+    SalaActual.broadcast(nombre + ": " + mensaje);
+}
         
 
     } catch (Exception e) {
@@ -161,5 +186,9 @@ SalaActual.broadcast("[sistema] " + nombre + " salió de la sala.");
         } catch (IOException e) {
             System.err.println("Error al cerrar conexión de " + nombre + ": " + e.getMessage());
         }
+    }
+
+    public String getNombre() {
+        return nombre;
     }
 }
