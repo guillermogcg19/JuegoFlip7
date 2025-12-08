@@ -28,10 +28,10 @@ public void run() {
         entrada = new DataInputStream(socket.getInputStream());
         salida = new DataOutputStream(socket.getOutputStream());
 
-        enviar("===== Sistema de Autenticación Flip7 =====");
-        enviar("1) Iniciar sesión");
+        enviar("===== Sistema de Autenticacion Flip7 =====");
+        enviar("1) Iniciar sesion");
         enviar("2) Registrarse");
-        enviar("Selecciona una opción (1 o 2):");
+        enviar("Selecciona una opcion (1 o 2):");
 
         int opcion = Integer.parseInt(entrada.readUTF());
 
@@ -45,27 +45,34 @@ public void run() {
             if (opcion == 1) { // login
                 if (ServidorFlip7.getDB().validarLogin(nombreInput, pass)) {
                     nombre = nombreInput;
-                    enviar("[sistema] Inicio de sesión exitoso. Bienvenido " + nombre + "!");
+                    enviar(" Inicio de sesión exitoso. Bienvenido " + nombre + "!");
                     break;
                 } else {
-                    enviar("[error] Usuario o contraseña incorrectos. Intenta otra vez.");
+                    enviar(" Usuario o contraseña incorrectos. Intenta otra vez.");
                 }
 
             } else if (opcion == 2) { // registro
                 if (ServidorFlip7.getDB().registrarUsuario(nombreInput, pass)) {
                     nombre = nombreInput;
-                    enviar("[sistema] Registro exitoso. Bienvenido " + nombre + "!");
+                    enviar(" Registro exitoso. Bienvenido " + nombre + "!");
                     break;
                 } else {
-                    enviar("[error] Ese usuario ya existe. Intenta con otro.");
+                    enviar(" Ese usuario ya existe. Intenta con otro.");
                 }
             }
         }
 
         System.out.println("Jugador conectado como: " + nombre);
 
-        ServidorFlip7.broadcast("[sistema] " + nombre + " se ha unido al servidor.", this);
-        enviar("[sistema] Ya estás autenticado. Usa /salir para desconectarte.");
+        ServidorFlip7.broadcast(" " + nombre + " se ha unido al servidor.", this);
+        enviar("""
+===== Bienvenido al chat =====
+Comandos disponibles:
+/ayuda   Ver comandos
+/lista   Ver jugadores/espectadores
+/renombrar NUEVO_NOMBRE
+/salir
+""");
 
         String mensaje;
 
@@ -74,7 +81,7 @@ public void run() {
 
     // ----------------- COMANDOS -----------------
     if (mensaje.equalsIgnoreCase("/salir")) {
-        enviar("[sistema] Saliendo del servidor...");
+        enviar(" Saliendo del servidor...");
         break;
     }
 
@@ -123,7 +130,7 @@ int opcionSala = 0;
 try {
     opcionSala = Integer.parseInt(entrada.readUTF());
 } catch (Exception e) {
-    enviar("[error] Entrada inválida. Se asignará opción 2 por defecto.");
+    enviar(" Entrada inválida. Se asignará opción 2 por defecto.");
     opcionSala = 2;
 }
 
@@ -137,7 +144,7 @@ String nombreSala;
 try {
     nombreSala = entrada.readUTF();
 } catch (Exception e) {
-    enviar("[error] No se pudo leer el nombre de la sala. Se usará 'SalaDefault'.");
+    enviar(" No se pudo leer el nombre de la sala. Se usará 'SalaDefault'.");
     nombreSala = "SalaDefault";
 }
 
