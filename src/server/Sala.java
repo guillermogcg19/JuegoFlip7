@@ -47,4 +47,22 @@ public class Sala {
     public synchronized String resumenSala() {
         return "[Sala: " + nombreSala + " | Jugadores: " + jugadores.size() + "/" + MAX_JUGADORES + " | Espectadores: " + espectadores.size() + "]";
     }
+
+    public synchronized String resumenCompleto() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== Sala: ").append(nombreSala).append(" ===\n");
+
+        sb.append("\nJugadores (" + jugadores.size() + "/" + MAX_JUGADORES + "):\n");
+        for (ClienteHandler j : jugadores) {
+            sb.append(" - ").append(j.getNombre()).append("\n");
+        }
+
+        sb.append("\nEspectadores (" + espectadores.size() + "):\n");
+        for (ClienteHandler e : espectadores) {
+            sb.append(" - ").append(e.getNombre()).append("\n");
+        }
+
+        return sb.toString();
+    }
+
 }
