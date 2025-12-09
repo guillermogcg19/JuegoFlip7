@@ -5,198 +5,175 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
-/**
- * Maneja a UN cliente:
- * - Recibe mensajes.
- * - Los reenvía (broadcast) al resto.
- * - Soporta el comando /salir.
- */
 public class ClienteHandler extends Thread {
 
     private final Socket socket;
     private DataInputStream entrada;
     private DataOutputStream salida;
     private String nombre;
-private Sala SalaActual;
+    private Sala salaActual;
+
     public ClienteHandler(Socket socket) {
         this.socket = socket;
     }
 
-@Override
-public void run() {
-    try {
-        entrada = new DataInputStream(socket.getInputStream());
-        salida = new DataOutputStream(socket.getOutputStream());
+    @Override
+    public void run() {
+        try {
+            entrada = new DataInputStream(socket.getInputStream());
+            salida = new DataOutputStream(socket.getOutputStream());
 
-        enviar("===== Sistema de Autenticacion Flip7 =====");
-        enviar("1) Iniciar sesion");
-        enviar("2) Registrarse");
-        enviar("Selecciona una opcion (1 o 2):");
+            // ---------- AUTENTICACIÓN ----------
+            enviar("===== Sistema de Autenticacion Flip7 =====");
+            enviar("1) Iniciar sesion");
+            enviar("2) Registrarse");
 
-        int opcion = Integer.parseInt(entrada.readUTF());
-
-        while (true) {
-            enviar("Nombre de usuario:");
-            String nombreInput = entrada.readUTF();
-
-            enviar("Contraseña:");
-            String pass = entrada.readUTF();
-
-            if (opcion == 1) { // login
-                if (ServidorFlip7.getDB().validarLogin(nombreInput, pass)) {
-                    nombre = nombreInput;
-                    enviar(" Inicio de sesión exitoso. Bienvenido " + nombre + "!");
-                    break;
-                } else {
-                    enviar(" Usuario o contraseña incorrectos. Intenta otra vez.");
-                }
-
-            } else if (opcion == 2) { // registro
-                if (ServidorFlip7.getDB().registrarUsuario(nombreInput, pass)) {
-                    nombre = nombreInput;
-                    enviar(" Registro exitoso. Bienvenido " + nombre + "!");
-                    break;
-                } else {
-                    enviar(" Ese usuario ya existe. Intenta con otro.");
+            int opcion = -1;
+            while (true) {
+                enviar("Selecciona una opcion (1 o 2):");
+                try {
+                    opcion = Integer.parseInt(entrada.readUTF());
+                    if (opcion == 1 || opcion == 2) break;
+                    enviar("❌ Opcion invalida. Intenta nuevamente.");
+                } catch (Exception e) {
+                    enviar("❌ Entrada inválida. Solo escribe 1 o 2.");
                 }
             }
+
+            while (true) {
+                enviar("Nombre de usuario:");
+                String nombreInput = entrada.readUTF();
+
+                enviar("Contraseña:");
+                String pass = entrada.readUTF();
+
+                if (opcion == 1) {
+                    if (ServidorFlip7.getDB().validarLogin(nombreInput, pass)) {
+                        nombre = nombreInput;
+                        enviar("Inicio de sesion exitoso. Bienvenido " + nombre + "!");
+                        break;
+                    } else {
+                        enviar("❌ Usuario o contraseña incorrectos. Intenta de nuevo.");
+                    }
+                } else {
+                    if (ServidorFlip7.getDB().registrarUsuario(nombreInput, pass)) {
+                        nombre = nombreInput;
+                        enviar("✔ Registro exitoso. Bienvenido " + nombre + "!");
+                        break;
+                    } else {
+                        enviar("❌ Ese usuario ya existe. Intenta con otro.");
+                    }
+                }
+            }
+
+
+            // ----------- SELECCIÓN DE SALA ANTES DEL CHAT ----------
+            enviar("\n=== Selección de sala ===");
+            enviar("1) Ver salas existentes");
+            enviar("2) Crear o unirse a sala");
+
+            int opcionSala = -1;
+            while (true) {
+                enviar("Escribe 1 o 2:");
+                try {
+                    opcionSala = Integer.parseInt(entrada.readUTF());
+                    if (opcionSala == 1 || opcionSala == 2) break;
+                    enviar("❌ Opcion invalida. Intenta nuevamente.");
+                } catch (Exception e) {
+                    enviar("❌ Entrada inválida. Solo escribe 1 o 2.");
+                }
+            }
+
+            if (opcionSala == 1) {
+                enviar(GestorSalas.listarSalas());
+            }
+
+            enviar("Escribe el nombre de la sala para entrar o crear una nueva:");
+            String nombreSala = entrada.readUTF();
+
+            salaActual = GestorSalas.obtenerOScrear(nombreSala);
+
+            if (salaActual.agregarJugador(this)) {
+                enviar("🟢 Te uniste como JUGADOR a la sala: " + nombreSala);
+                salaActual.broadcast("[Sistema] " + nombre + " se unió como jugador.");
+            } else {
+                salaActual.agregarEspectador(this);
+                enviar("🟡 Sala llena. Entraste como ESPECTADOR.");
+                salaActual.broadcast("[Sistema] " + nombre + " se unió como espectador.");
+            }
+
+            // ----------- MENU DEL CHAT -----------
+            enviar("""
+                    
+===== Comandos disponibles =====
+/ayuda         - Mostrar comandos
+/lista         - Ver jugadores/espectadores
+/renombrar XYZ - Cambiar tu nombre
+/salir         - Salir del servidor
+================================
+""");
+
+            // ----------- BUCLE PRINCIPAL DEL CHAT -----------
+            String mensaje;
+
+            while (true) {
+                mensaje = entrada.readUTF().trim();
+
+                if (mensaje.equalsIgnoreCase("/salir")) {
+                    enviar("👋 Saliendo...");
+                    break;
+                }
+
+                if (mensaje.equalsIgnoreCase("/lista")) {
+                    enviar(salaActual.resumenCompleto());
+                    continue;
+                }
+
+                if (mensaje.startsWith("/renombrar ")) {
+                    String nuevo = mensaje.replace("/renombrar ", "").trim();
+                    salaActual.broadcast("[Sistema] " + nombre + " ahora es " + nuevo);
+                    nombre = nuevo;
+                    continue;
+                }
+
+                if (mensaje.equalsIgnoreCase("/ayuda")) {
+                    enviar("""
+===== Comandos =====
+/ayuda
+/lista
+/renombrar XYZ
+/salir
+""");
+                    continue;
+                }
+
+                // --- Mensaje normal ---
+                salaActual.broadcast(nombre + ": " + mensaje);
+            }
+
+        } catch (Exception e) {
+            System.out.println("⚠ Error con cliente: " + nombre);
+        } finally {
+            cerrar();
         }
-
-        System.out.println("Jugador conectado como: " + nombre);
-
-        ServidorFlip7.broadcast(" " + nombre + " se ha unido al servidor.", this);
-        enviar("""
-===== Bienvenido al chat =====
-Comandos disponibles:
-/ayuda   Ver comandos
-/lista   Ver jugadores/espectadores
-/renombrar NUEVO_NOMBRE
-/salir
-""");
-
-        String mensaje;
-
-        while (true) {
-    mensaje = entrada.readUTF().trim();
-
-    // ----------------- COMANDOS -----------------
-    if (mensaje.equalsIgnoreCase("/salir")) {
-        enviar(" Saliendo del servidor...");
-        break;
     }
 
-    if (mensaje.equalsIgnoreCase("/lista")) {
-        enviar(SalaActual.resumenCompleto());
-        continue;
-    }
-
-    if (mensaje.startsWith("/renombrar ")) {
-        String nuevoNombre = mensaje.replace("/renombrar ", "").trim();
-        SalaActual.broadcast("[sistema] " + nombre + " ahora es " + nuevoNombre);
-        nombre = nuevoNombre;
-        continue;
-    }
-
-    if (mensaje.equalsIgnoreCase("/ayuda")) {
-        enviar("""
-===== Bienvenido al chat =====
-Comandos disponibles:
-/ayuda   Ver comandos
-/lista   Ver jugadores/espectadores
-/renombrar NUEVO_NOMBRE
-/salir
-""");
-        continue;
-    }
-
-    // ----------------- CHAT NORMAL -----------------
-    SalaActual.broadcast(nombre + ": " + mensaje);
-}
-        
-
-    } catch (Exception e) {
-        System.err.println("Error con cliente " + nombre + ": " + e.getMessage());
-    } finally {
-        cerrar();
-    }
-
- enviar("=== Selección de sala ===");
-enviar("1) Ver salas");
-enviar("2) Unirse o crear una sala");
-enviar("Escribe 1 o 2:");
-
-int opcionSala = 0;
-
-try {
-    opcionSala = Integer.parseInt(entrada.readUTF());
-} catch (Exception e) {
-    enviar(" Entrada inválida. Se asignará opción 2 por defecto.");
-    opcionSala = 2;
-}
-
-if (opcionSala == 1) {
-    enviar(GestorSalas.listarSalas());
-}
-
-enviar("Escribe el nombre de la sala a la que deseas entrar:");
-String nombreSala;
-
-try {
-    nombreSala = entrada.readUTF();
-} catch (Exception e) {
-    enviar(" No se pudo leer el nombre de la sala. Se usará 'SalaDefault'.");
-    nombreSala = "SalaDefault";
-}
-
-// Obtener sala (si no existe, se crea)
-SalaActual = GestorSalas.obtenerOScrear(nombreSala);
-
-// Intentar entrar como jugador
-if (SalaActual.agregarJugador(this)) {
-    enviar("Te uniste como JUGADOR a la sala: " + nombreSala);
-    SalaActual.broadcast("[sistema] " + nombre + " se unió como jugador.");
-} else {
-    // Si ya hay 6, entra como espectador
-    SalaActual.agregarEspectador(this);
-    enviar("La sala está llena. Entraste como ESPECTADOR en: " + nombreSala);
-    SalaActual.broadcast("[sistema] " + nombre + " se unió como espectador.");
-}
-}
-
+    // ---------- MÉTODOS AUXILIARES ----------
     public void enviar(String mensaje) {
         try {
-            if (salida != null) {
-                salida.writeUTF(mensaje);
-            }
-        } catch (IOException e) {
-            System.err.println("No se pudo enviar mensaje a " + nombre + ": " + e.getMessage());
-        }
-       
+            salida.writeUTF(mensaje);
+        } catch (IOException ignored) {}
     }
 
     private void cerrar() {
         try {
-            if (nombre != null) {
-                System.out.println("Cliente desconectado: " + nombre);
-                ServidorFlip7.broadcast("[sistema] " + nombre + " se ha desconectado.", this);
+            if (salaActual != null) {
+                salaActual.broadcast("[Sistema] " + nombre + " salió de la sala.");
+                salaActual.removerCliente(this);
             }
-
-            ServidorFlip7.removerCliente(this);
-if (SalaActual != null ){
-SalaActual.removerCliente(this);
-SalaActual.broadcast("[sistema] " + nombre + " salió de la sala.");
-}
-            if (socket != null && !socket.isClosed()) {
-                
-                socket.close();
-            }
-
-        } catch (IOException e) {
-            System.err.println("Error al cerrar conexión de " + nombre + ": " + e.getMessage());
-        }
+            socket.close();
+        } catch (IOException ignored) {}
     }
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getNombre() { return nombre; }
 }
