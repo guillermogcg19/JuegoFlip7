@@ -12,8 +12,13 @@ public class Carta {
         this.nombre = nombre;
     }
 
-    public CartaTipo getTipo() { return tipo; }
-    public int getValor() { return valor; }
+    public CartaTipo getTipo() {
+        return tipo;
+    }
+
+    public int getValor() {
+        return valor;
+    }
 
     @Override
     public String toString() {

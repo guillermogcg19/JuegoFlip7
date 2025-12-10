@@ -1,61 +1,48 @@
 package server;
 
-import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/**
- * Servidor base Flip7:
- * - Escucha en un puerto fijo.
- * - Acepta múltiples clientes.
- * - Crea un hilo (ClienteHandler) por cada cliente.
- */
 public class ServidorFlip7 {
 
     public static final int PUERTO = 5000;
-    private static final Database db = new Database();
-public static Database getDB() { return db; }
-
-
-    // Lista de clientes conectados (para broadcast más adelante)
     private static final CopyOnWriteArrayList<ClienteHandler> clientes = new CopyOnWriteArrayList<>();
+    private static Database db = new Database();
+
+    public static Database getDB() {
+        return db;
+    }
+
+    public static void removerCliente(ClienteHandler c) {
+        clientes.remove(c);
+    }
+
+    public static boolean usuarioYaConectado(String nombre) {
+        for (ClienteHandler c : clientes) {
+            if (c.getNombre() != null && c.getNombre().equalsIgnoreCase(nombre)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public static void main(String[] args) {
-        System.out.println("Servidor Flip7 escuchando en el puerto " + PUERTO + "...");
 
         try (ServerSocket servidor = new ServerSocket(PUERTO)) {
+            System.out.println("Servidor Flip7 escuchando en puerto " + PUERTO);
 
             while (true) {
                 Socket socket = servidor.accept();
                 System.out.println("Cliente conectado: " + socket.getInetAddress());
 
-                ClienteHandler handler = new ClienteHandler(socket);
-                clientes.add(handler);
-                handler.start();
+                ClienteHandler ch = new ClienteHandler(socket);
+                clientes.add(ch);
+                ch.start();
             }
 
-        } catch (IOException e) {
-            System.err.println("Error en el servidor: " + e.getMessage());
-            e.printStackTrace();
+        } catch (Exception e) {
+            System.out.println("Error en servidor: " + e.getMessage());
         }
-    }
-
-    /**
-     * Enviar un mensaje a todos los clientes excepto al origen.
-     */
-    public static void broadcast(String mensaje, ClienteHandler origen) {
-        for (ClienteHandler c : clientes) {
-            if (c != origen) {
-                c.enviar(mensaje);
-            }
-        }
-    }
-
-    /**
-     * Eliminar al cliente de la lista cuando se desconecta.
-     */
-    public static void removerCliente(ClienteHandler handler) {
-        clientes.remove(handler);
     }
 }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-private xmlns="http://www.netbeans.org/ns/project-private/1">
+    <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
+        <group>
+            <file>file:/C:/Users/Guillermo/Documents/JuegoFlip7/src/server/Database.java</file>
+            <file>file:/C:/Users/Guillermo/Documents/JuegoFlip7/src/server/ServidorFlip7.java</file>
+            <file>file:/C:/Users/Guillermo/Documents/JuegoFlip7/src/client/ClienteFlip7.java</file>
+            <file>file:/C:/Users/Guillermo/Documents/JuegoFlip7/src/server/ClienteHandler.java</file>
+            <file>file:/C:/Users/Guillermo/Documents/JuegoFlip7/src/server/Sala.java</file>
+            <file>file:/C:/Users/Guillermo/Documents/JuegoFlip7/src/server/cartas/CartaTipo.java</file>
+            <file>file:/C:/Users/Guillermo/Documents/JuegoFlip7/src/server/cartas/Carta.java</file>
+            <file>file:/C:/Users/Guillermo/Documents/JuegoFlip7/src/server/cartas/Baraja.java</file>
+            <file>file:/C:/Users/Guillermo/Documents/JuegoFlip7/src/server/GestorSalas.java</file>
+        </group>
+    </open-files>
+</project-private>
