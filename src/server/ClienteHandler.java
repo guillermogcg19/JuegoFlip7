@@ -47,7 +47,7 @@ public class ClienteHandler extends Thread {
     }
 
     // ------------------------------
-    // Lector con soporte de chat 
+    // Lector con soporte de chat
     // ------------------------------
     private String leerEntradaConChat() throws IOException {
         while (true) {
@@ -72,7 +72,6 @@ public class ClienteHandler extends Thread {
 
     private int leerOpcion(int min, int max) throws IOException {
         while (true) {
-            //  Usa el lector con chat
             String linea = leerEntradaConChat();
             try {
                 int op = Integer.parseInt(linea);
@@ -92,11 +91,9 @@ public class ClienteHandler extends Thread {
 
         while (true) {
             enviar("Usuario:");
-            //  Usa el lector con chat
             String user = leerEntradaConChat();
 
             enviar("Password:");
-            //  Usa el lector con chat
             String pass = leerEntradaConChat();
 
             // Comprobar que no exista ya conectado
@@ -133,7 +130,6 @@ public class ClienteHandler extends Thread {
         if (op == 1) enviar(GestorSalas.listarSalas());
 
         enviar("Nombre de sala:");
-        //  Usa el lector con chat
         String nombreSala = leerEntradaConChat();
         salaActual = GestorSalas.obtenerOScrear(nombreSala);
 
@@ -179,10 +175,9 @@ public class ClienteHandler extends Thread {
                 continue;
             }
 
-            // Si estoy congelado y es mi turno, salto mi turno y me descongelo
+            //  Lógica de Freeze: Si es mi turno y estoy congelado, salto turno
             if (salaActual.turnoActual() == this && congelado) {
-                congelado = false;
-                salaActual.agregarLog(nombre + " perdió su turno por Freeze.");
+                salaActual.agregarLog(nombre + " está congelado y pierde su turno.");
                 salaActual.siguienteTurno();
                 continue;
             }
@@ -245,9 +240,14 @@ public class ClienteHandler extends Thread {
             mano.add(carta);
         }
 
-        if (mano.size() >= 7) {
+        //  Solo las cartas numéricas cuentan para el bonus de 7
+        long numericas = mano.stream()
+                .filter(c -> c.getTipo() == CartaTipo.NUMERO)
+                .count();
+
+        if (numericas >= 7) {
             salaActual.asignarBonus7(this);
-            salaActual.agregarLog(nombre + " llegó a 7 cartas. Ronda finalizada con bonus.");
+            salaActual.agregarLog(nombre + " llegó a 7 cartas numéricas. Ronda finalizada con bonus.");
             salaActual.forzarFinRonda();
         }
     }
@@ -297,6 +297,7 @@ public class ClienteHandler extends Thread {
         salaActual.agregarLog(nombre + " aplicó Freeze a " + objetivo.getNombre());
     }
 
+    //  Flip Three mejorado: recursividad en acciones y check de 7 cartas
     private void aplicarFlipThree() throws IOException {
 
         List<ClienteHandler> vivos = salaActual.getJugadoresVivos();
@@ -338,9 +339,26 @@ public class ClienteHandler extends Thread {
                 }
             }
 
-            objetivo.getMano().add(extra);
+            // Si sale una acción durante Flip Three, el objetivo la ejecuta
+            if (extra.getTipo() == CartaTipo.ACCION) {
+                try {
+                    // Accedemos a procesarAccion del objetivo (es privado pero estamos en la misma clase)
+                    objetivo.procesarAccion(extra);
+                } catch (IOException e) {
+                    salaActual.agregarLog("Error procesando acción de FlipThree para " + objetivo.getNombre());
+                    objetivo.eliminado = true;
+                    break;
+                }
+            } else {
+                objetivo.getMano().add(extra);
+            }
 
-            if (objetivo.getMano().size() >= 7) {
+            // Check bonus 7 dentro del loop de Flip Three
+            long numericas = objetivo.getMano().stream()
+                    .filter(c -> c.getTipo() == CartaTipo.NUMERO)
+                    .count();
+
+            if (numericas >= 7) {
                 salaActual.asignarBonus7(objetivo);
                 salaActual.forzarFinRonda();
                 break;
@@ -356,7 +374,7 @@ public class ClienteHandler extends Thread {
         mano.clear();
         eliminado = false;
         plantado = false;
-        congelado = false;
+        congelado = false; // Se resetea el congelado al iniciar ronda
         segundaOportunidad = false;
 
         Carta inicial = salaActual.robarCarta();
