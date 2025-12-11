@@ -47,6 +47,42 @@ public class ClienteHandler extends Thread {
     }
 
     // ------------------------------
+    // Lector con soporte de chat 
+    // ------------------------------
+    private String leerEntradaConChat() throws IOException {
+        while (true) {
+            String linea = entrada.readUTF();
+            if (linea == null) return null;
+
+            linea = linea.trim();
+
+            // Si empieza con ':' y ya está en una sala, lo tomamos como chat
+            if (linea.startsWith(":") && salaActual != null) {
+                String msg = linea.substring(1).trim();
+                if (!msg.isEmpty()) {
+                    salaActual.enviarChat(this, msg);
+                }
+                // Volvemos a esperar entrada, no retornamos esto como comando de juego
+                continue;
+            }
+
+            return linea;
+        }
+    }
+
+    private int leerOpcion(int min, int max) throws IOException {
+        while (true) {
+            //  Usa el lector con chat
+            String linea = leerEntradaConChat();
+            try {
+                int op = Integer.parseInt(linea);
+                if (op >= min && op <= max) return op;
+            } catch (Exception ignored) {}
+            enviar("Opción inválida.");
+        }
+    }
+
+    // ------------------------------
     //    Login
     // ------------------------------
     private void autenticarUsuario() throws IOException {
@@ -56,10 +92,12 @@ public class ClienteHandler extends Thread {
 
         while (true) {
             enviar("Usuario:");
-            String user = entrada.readUTF().trim();
+            //  Usa el lector con chat
+            String user = leerEntradaConChat();
 
             enviar("Password:");
-            String pass = entrada.readUTF().trim();
+            //  Usa el lector con chat
+            String pass = leerEntradaConChat();
 
             // Comprobar que no exista ya conectado
             if (ServidorFlip7.usuarioYaConectado(user)) {
@@ -95,7 +133,9 @@ public class ClienteHandler extends Thread {
         if (op == 1) enviar(GestorSalas.listarSalas());
 
         enviar("Nombre de sala:");
-        salaActual = GestorSalas.obtenerOScrear(entrada.readUTF().trim());
+        //  Usa el lector con chat
+        String nombreSala = leerEntradaConChat();
+        salaActual = GestorSalas.obtenerOScrear(nombreSala);
 
         boolean pudoEntrar = salaActual.agregarJugador(this);
 
@@ -379,16 +419,6 @@ public class ClienteHandler extends Thread {
             salida.writeUTF("\n" + msg);
             salida.flush();
         } catch (Exception ignored) {}
-    }
-
-    private int leerOpcion(int min, int max) throws IOException {
-        while (true) {
-            try {
-                int op = Integer.parseInt(entrada.readUTF().trim());
-                if (op >= min && op <= max) return op;
-            } catch (Exception ignored) {}
-            enviar("Opción inválida.");
-        }
     }
 
     private void cerrarConexion() {
