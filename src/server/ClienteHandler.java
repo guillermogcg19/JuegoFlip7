@@ -446,4 +446,7 @@ public class ClienteHandler extends Thread {
             socket.close();
         } catch (IOException ignored) {}
     }
+    public void reiniciarPuntuacion() {
+        puntosTotales = 0;
+    }
 }
