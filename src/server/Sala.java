@@ -14,10 +14,10 @@ public class Sala {
     private ClienteHandler creador;
     private boolean partidaIniciada = false;
     private boolean rondaActiva = false;
+    private boolean partidaTerminada = false;
 
     private int turnoIndex = 0;
     private ClienteHandler bonusJugador7;
-private boolean partidaTerminada = false; 
 
     public Sala(String nombre) {
         this.nombre = nombre;
@@ -78,13 +78,12 @@ private boolean partidaTerminada = false;
 
         sb.append("\nOpciones:\n");
 
-        // --- Lógica nueva de fin de juego ---
         if (partidaTerminada) {
             if (jugador == creador && jugadores.size() >= 2) {
                 sb.append("1) Revancha (nueva partida, reinicia puntajes)\n");
                 sb.append("2) Salir\n");
             } else {
-                sb.append("(La partida ha terminado. Esperando decisión del creador sobre la revancha...)\n");
+                sb.append("(La partida ha terminado. Esperando decision del creador sobre la revancha...)\n");
                 sb.append("2) Salir\n");
             }
         } else {
@@ -93,16 +92,15 @@ private boolean partidaTerminada = false;
 
             sb.append("2) Salir\n");
         }
-        
+
         sb.append("\nTip: escribe :mensaje para chatear con la sala.\n");
+
         return sb.toString();
     }
 
-    // [MODIFICADO] Reinicia puntos si venimos de una partida terminada
-
-    /**
-     *
-     */
+    // -------------------------
+    //     Partida / Rondas
+    // -------------------------
     public synchronized void iniciarPartida() {
         if (!puedeIniciar(creador)) return;
 
@@ -114,29 +112,7 @@ private boolean partidaTerminada = false;
         }
 
         baraja.reiniciar();
-        partidaIniciada = true;
-        iniciarNuevaRonda();
-        agregarLog("La partida ha comenzado.");
-    }
 
-    // -------------------------
-    //     Partida / Rondas
-    // -------------------------
-   /**
-     * Verifica si el creador puede iniciar la partida y, de ser así,
-     * reinicia el mazo y comienza la primera ronda.
-     */
-    public synchronized void iniciarpartida () {
-        if (!puedeIniciar(creador)) return;
-
-        if (partidaTerminada) {
-            for (ClienteHandler p : jugadores) {
-                p.reiniciarPuntuacion();
-            }
-            partidaTerminada = false;
-        }
-
-        baraja.reiniciar();
         partidaIniciada = true;
         iniciarNuevaRonda();
         agregarLog("La partida ha comenzado.");
@@ -149,9 +125,6 @@ private boolean partidaTerminada = false;
         rondaActiva = true;
         turnoIndex = 0;
         bonusJugador7 = null;
-
-        // OJO: ya no reiniciamos el mazo aquí; el mazo dura toda la partida
-        // baraja.reiniciar();
 
         log.clear();
 
@@ -187,7 +160,8 @@ private boolean partidaTerminada = false;
 
     public synchronized boolean hayDuplicado(ClienteHandler jugador, Carta carta) {
         return jugador.getMano().stream().anyMatch(c ->
-                (c.getTipo() == CartaTipo.NUMERO && carta.getTipo() == CartaTipo.NUMERO &&
+                (c.getTipo() == CartaTipo.NUMERO &&
+                 carta.getTipo() == CartaTipo.NUMERO &&
                  c.getValor() == carta.getValor()));
     }
 
@@ -219,7 +193,9 @@ private boolean partidaTerminada = false;
     }
 
     private synchronized void finalizarRonda() {
+
         if (!rondaActiva) return;
+
         rondaActiva = false;
 
         StringBuilder sb = new StringBuilder("\nResultados de la ronda:\n");
@@ -231,17 +207,16 @@ private boolean partidaTerminada = false;
               .append(puntos).append(" (Total: ").append(p.getPuntosTotales()).append(")\n");
         }
 
-        // --- Chequeo de victoria ---
         boolean hayGanador = jugadores.stream()
                 .anyMatch(p -> p.getPuntosTotales() >= 200);
 
         if (hayGanador) {
-            partidaTerminada = true; // Marcamos el fin
+            partidaTerminada = true;
 
             List<ClienteHandler> ordenados = new ArrayList<>(jugadores);
             ordenados.sort((a, b) -> Integer.compare(b.getPuntosTotales(), a.getPuntosTotales()));
 
-            sb.append("\n=== Clasificación final ===\n");
+            sb.append("\n=== Clasificacion final ===\n");
             int lugar = 1;
             for (ClienteHandler p : ordenados) {
                 sb.append(lugar++).append(") ")
@@ -251,7 +226,7 @@ private boolean partidaTerminada = false;
                   .append(" puntos\n");
             }
 
-            sb.append("\nLa partida ha terminado (alguien alcanzó 200 puntos o más).\n");
+            sb.append("\nLa partida ha terminado (alguien alcanzo 200 puntos o mas).\n");
             sb.append("El creador puede decidir si hay revancha desde el lobby.\n");
 
         } else {
@@ -270,7 +245,8 @@ private boolean partidaTerminada = false;
     // -------------------------
     //     UI Turno
     // -------------------------
-   public synchronized String generarPantallaTurno(ClienteHandler jugador) {
+    public synchronized String generarPantallaTurno(ClienteHandler jugador) {
+
         StringBuilder sb = new StringBuilder("\n----------------------------------------\n");
         sb.append("Sala: ").append(nombre).append("\n");
 
@@ -284,7 +260,6 @@ private boolean partidaTerminada = false;
         sb.append("\nHistorial:\n");
         log.stream().skip(Math.max(0, log.size() - 5)).forEach(x -> sb.append(" - ").append(x).append("\n"));
 
-        //  Tip para el chat
         sb.append("\nTip: escribe :mensaje para chatear con la sala.\n");
         sb.append("----------------------------------------\n");
 
@@ -304,6 +279,15 @@ private boolean partidaTerminada = false;
         return jugadores.isEmpty() && espectadores.isEmpty();
     }
 
+    // -------------------------
+    //     Chat
+    // -------------------------
+    public synchronized void enviarChat(ClienteHandler emisor, String mensaje) {
+        String linea = "[CHAT] " + emisor.getNombre() + ": " + mensaje;
+        jugadores.forEach(j -> j.enviar(linea));
+        espectadores.forEach(e -> e.enviar(linea));
+    }
+
     // Helpers para acciones
     public synchronized List<ClienteHandler> getJugadoresVivos() {
         List<ClienteHandler> vivos = new ArrayList<>();
@@ -319,10 +303,5 @@ private boolean partidaTerminada = false;
             if (c != yo && !c.eliminado) vivos.add(c);
         }
         return vivos;
-    }
-    public synchronized void enviarChat(ClienteHandler emisor, String mensaje) {
-        String linea = "[CHAT] " + emisor.getNombre() + ": " + mensaje;
-        jugadores.forEach(j -> j.enviar(linea));
-        espectadores.forEach(e -> e.enviar(linea));
     }
 }

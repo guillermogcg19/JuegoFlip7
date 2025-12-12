@@ -34,8 +34,6 @@ public class ServidorFlip7 {
 
             while (true) {
                 Socket socket = servidor.accept();
-                System.out.println("Cliente conectado: " + socket.getInetAddress());
-
                 ClienteHandler ch = new ClienteHandler(socket);
                 clientes.add(ch);
                 ch.start();

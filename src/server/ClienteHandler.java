@@ -56,13 +56,11 @@ public class ClienteHandler extends Thread {
 
             linea = linea.trim();
 
-            // Si empieza con ':' y ya está en una sala, lo tomamos como chat
             if (linea.startsWith(":") && salaActual != null) {
                 String msg = linea.substring(1).trim();
                 if (!msg.isEmpty()) {
                     salaActual.enviarChat(this, msg);
                 }
-                // Volvemos a esperar entrada, no retornamos esto como comando de juego
                 continue;
             }
 
@@ -77,44 +75,58 @@ public class ClienteHandler extends Thread {
                 int op = Integer.parseInt(linea);
                 if (op >= min && op <= max) return op;
             } catch (Exception ignored) {}
-            enviar("Opción inválida.");
+            enviar("Opcion invalida.");
         }
     }
 
     // ------------------------------
-    //    Login
+    //    Login con menu y regresar
     // ------------------------------
     private void autenticarUsuario() throws IOException {
-        enviar("Flip7\n1) Iniciar sesion\n2) Registrarse");
-
-        int opcion = leerOpcion(1, 2);
 
         while (true) {
-            enviar("Usuario:");
-            String user = leerEntradaConChat();
+            enviar("Flip7\n1) Iniciar sesion\n2) Registrarse\n3) Salir");
 
-            enviar("Password:");
-            String pass = leerEntradaConChat();
+            int opcion = leerOpcion(1, 3);
 
-            // Comprobar que no exista ya conectado
-            if (ServidorFlip7.usuarioYaConectado(user)) {
-                enviar("Ese usuario ya está conectado.");
-                continue;
+            if (opcion == 3) {
+                throw new IOException("Usuario salio en login");
             }
 
-            if (opcion == 1 && ServidorFlip7.getDB().validarLogin(user, pass)) {
-                nombre = user;
-                enviar("Sesion correcta. Bienvenido " + nombre);
-                break;
-            }
+            while (true) {
+                enviar("Usuario (o 0 para volver al menu principal):");
+                String user = leerEntradaConChat();
 
-            if (opcion == 2 && ServidorFlip7.getDB().registrarUsuario(user, pass)) {
-                nombre = user;
-                enviar("Registro exitoso. Bienvenido " + nombre);
-                break;
-            }
+                if ("0".equals(user)) {
+                    break;
+                }
 
-            enviar("Datos incorrectos, intenta de nuevo.");
+                enviar("Password (o 0 para volver al menu principal):");
+                String pass = leerEntradaConChat();
+
+                if ("0".equals(pass)) {
+                    break;
+                }
+
+                if (ServidorFlip7.usuarioYaConectado(user)) {
+                    enviar("Ese usuario ya esta conectado.");
+                    continue;
+                }
+
+                if (opcion == 1 && ServidorFlip7.getDB().validarLogin(user, pass)) {
+                    nombre = user;
+                    enviar("Sesion correcta. Bienvenido " + nombre);
+                    return;
+                }
+
+                if (opcion == 2 && ServidorFlip7.getDB().registrarUsuario(user, pass)) {
+                    nombre = user;
+                    enviar("Registro exitoso. Bienvenido " + nombre);
+                    return;
+                }
+
+                enviar("Datos incorrectos, intenta de nuevo o escribe 0 en usuario/password para volver al menu.");
+            }
         }
     }
 
@@ -137,7 +149,7 @@ public class ClienteHandler extends Thread {
 
         if (!pudoEntrar) {
             salaActual.agregarEspectador(this);
-            enviar("La sala está llena, entras como espectador.");
+            enviar("La sala esta llena, entras como espectador.");
         } else {
             salaActual.agregarLog(nombre + " entro como jugador.");
         }
@@ -156,11 +168,18 @@ public class ClienteHandler extends Thread {
 
                 if (salaActual.puedeIniciar(this)) {
                     int op = leerOpcion(1, 2);
-                    if (op == 1) salaActual.iniciarPartida();
-                    continue;
+                    if (op == 1) {
+                        salaActual.iniciarPartida();
+                    } else if (op == 2) {
+                        return;
+                    }
+                } else {
+                    int op = leerOpcion(2, 2);
+                    if (op == 2) {
+                        return;
+                    }
                 }
 
-                Thread.sleep(400);
                 continue;
             }
 
@@ -169,26 +188,22 @@ public class ClienteHandler extends Thread {
                 continue;
             }
 
-            // Eliminado o plantado solo esperan que termine la ronda
             if (eliminado || plantado) {
                 Thread.sleep(300);
                 continue;
             }
 
-            //  Lógica de Freeze: Si es mi turno y estoy congelado, salto turno
             if (salaActual.turnoActual() == this && congelado) {
-                salaActual.agregarLog(nombre + " está congelado y pierde su turno.");
+                salaActual.agregarLog(nombre + " esta congelado y pierde su turno.");
                 salaActual.siguienteTurno();
                 continue;
             }
 
-            // Si no es mi turno, espero
             if (salaActual.turnoActual() != this) {
                 Thread.sleep(200);
                 continue;
             }
 
-            // Aquí sí es mi turno y puedo jugar
             turnoInteractivo();
         }
     }
@@ -200,14 +215,19 @@ public class ClienteHandler extends Thread {
 
         enviar(salaActual.generarPantallaTurno(this));
 
-        enviar("\n1) Robar carta\n2) Plantarse\nOpcion:");
+        enviar("\n1) Robar carta\n2) Plantarse\n3) Salir\nOpcion:");
 
-        int decision = leerOpcion(1, 2);
+        int decision = leerOpcion(1, 3);
 
-        if (decision == 1) robarCarta();
-        else {
+        if (decision == 3) {
+            throw new IOException("Jugador solicito salir durante su turno");
+        }
+
+        if (decision == 1) {
+            robarCarta();
+        } else {
             plantado = true;
-            salaActual.agregarLog(nombre + " se plantó.");
+            salaActual.agregarLog(nombre + " se planto.");
         }
 
         salaActual.verificarFinRonda();
@@ -220,13 +240,13 @@ public class ClienteHandler extends Thread {
     private void robarCarta() throws IOException {
 
         Carta carta = salaActual.robarCarta();
-        salaActual.agregarLog(nombre + " robó " + carta);
+        salaActual.agregarLog(nombre + " robo " + carta);
 
         if (salaActual.hayDuplicado(this, carta)) {
 
             if (segundaOportunidad) {
                 segundaOportunidad = false;
-                salaActual.agregarLog(nombre + " usó Second Chance.");
+                salaActual.agregarLog(nombre + " uso Second Chance.");
             } else {
                 eliminado = true;
                 salaActual.agregarLog(nombre + " fue eliminado por duplicado.");
@@ -240,14 +260,13 @@ public class ClienteHandler extends Thread {
             mano.add(carta);
         }
 
-        //  Solo las cartas numéricas cuentan para el bonus de 7
         long numericas = mano.stream()
                 .filter(c -> c.getTipo() == CartaTipo.NUMERO)
                 .count();
 
         if (numericas >= 7) {
             salaActual.asignarBonus7(this);
-            salaActual.agregarLog(nombre + " llegó a 7 cartas numéricas. Ronda finalizada con bonus.");
+            salaActual.agregarLog(nombre + " llego a 7 cartas numericas. Ronda finalizada con bonus.");
             salaActual.forzarFinRonda();
         }
     }
@@ -261,7 +280,7 @@ public class ClienteHandler extends Thread {
 
             case "Second Chance":
                 segundaOportunidad = true;
-                salaActual.agregarLog(nombre + " ganó Second Chance.");
+                salaActual.agregarLog(nombre + " gano Second Chance.");
                 break;
 
             case "Freeze":
@@ -279,7 +298,7 @@ public class ClienteHandler extends Thread {
         List<ClienteHandler> vivos = salaActual.getJugadoresVivosExcepto(this);
 
         if (vivos.isEmpty()) {
-            salaActual.agregarLog(nombre + " intentó Freeze pero no hay objetivos.");
+            salaActual.agregarLog(nombre + " intento Freeze pero no hay objetivos.");
             return;
         }
 
@@ -294,17 +313,15 @@ public class ClienteHandler extends Thread {
 
         objetivo.congelado = true;
 
-        salaActual.agregarLog(nombre + " aplicó Freeze a " + objetivo.getNombre());
+        salaActual.agregarLog(nombre + " aplico Freeze a " + objetivo.getNombre());
     }
 
-    //  Flip Three mejorado: recursividad en acciones y check de 7 cartas
     private void aplicarFlipThree() throws IOException {
 
         List<ClienteHandler> vivos = salaActual.getJugadoresVivos();
 
-        // Lista de opciones EXACTAMENTE como las mostramos
         List<ClienteHandler> opciones = new ArrayList<>();
-        opciones.add(this); // 1) Yo mismo
+        opciones.add(this);
 
         enviar("Flip Three — Seleccione destino:\n1) Yo mismo");
 
@@ -312,7 +329,7 @@ public class ClienteHandler extends Thread {
         for (ClienteHandler j : vivos) {
             if (j != this) {
                 enviar(numeroOpcion + ") " + j.getNombre());
-                opciones.add(j);   // 2) kaka, 3) otro, etc.
+                opciones.add(j);
                 numeroOpcion++;
             }
         }
@@ -320,18 +337,18 @@ public class ClienteHandler extends Thread {
         int target = leerOpcion(1, opciones.size());
         ClienteHandler objetivo = opciones.get(target - 1);
 
-        salaActual.agregarLog(nombre + " aplicó Flip Three a " + objetivo.getNombre());
+        salaActual.agregarLog(nombre + " aplico Flip Three a " + objetivo.getNombre());
 
         for (int i = 0; i < 3 && !objetivo.eliminado; i++) {
 
             Carta extra = salaActual.robarCarta();
-            salaActual.agregarLog(objetivo.getNombre() + " robó (FlipThree) " + extra);
+            salaActual.agregarLog(objetivo.getNombre() + " robo (FlipThree) " + extra);
 
             if (salaActual.hayDuplicado(objetivo, extra)) {
 
                 if (objetivo.segundaOportunidad) {
                     objetivo.segundaOportunidad = false;
-                    salaActual.agregarLog(objetivo.getNombre() + " usó Second Chance.");
+                    salaActual.agregarLog(objetivo.getNombre() + " uso Second Chance.");
                 } else {
                     objetivo.eliminado = true;
                     salaActual.agregarLog(objetivo.getNombre() + " fue eliminado.");
@@ -339,13 +356,11 @@ public class ClienteHandler extends Thread {
                 }
             }
 
-            // Si sale una acción durante Flip Three, el objetivo la ejecuta
             if (extra.getTipo() == CartaTipo.ACCION) {
                 try {
-                    // Accedemos a procesarAccion del objetivo (es privado pero estamos en la misma clase)
                     objetivo.procesarAccion(extra);
                 } catch (IOException e) {
-                    salaActual.agregarLog("Error procesando acción de FlipThree para " + objetivo.getNombre());
+                    salaActual.agregarLog("Error procesando accion de FlipThree para " + objetivo.getNombre());
                     objetivo.eliminado = true;
                     break;
                 }
@@ -353,7 +368,6 @@ public class ClienteHandler extends Thread {
                 objetivo.getMano().add(extra);
             }
 
-            // Check bonus 7 dentro del loop de Flip Three
             long numericas = objetivo.getMano().stream()
                     .filter(c -> c.getTipo() == CartaTipo.NUMERO)
                     .count();
@@ -374,17 +388,17 @@ public class ClienteHandler extends Thread {
         mano.clear();
         eliminado = false;
         plantado = false;
-        congelado = false; // Se resetea el congelado al iniciar ronda
+        congelado = false;
         segundaOportunidad = false;
 
         Carta inicial = salaActual.robarCarta();
-        salaActual.agregarLog(nombre + " recibió carta inicial " + inicial);
+        salaActual.agregarLog(nombre + " recibio carta inicial " + inicial);
 
         if (inicial.getTipo() == CartaTipo.ACCION) {
             try {
                 procesarAccion(inicial);
             } catch (IOException e) {
-                salaActual.agregarLog("Error procesando acción inicial de " + nombre);
+                salaActual.agregarLog("Error procesando accion inicial de " + nombre);
                 eliminado = true;
             }
         } else {
@@ -399,7 +413,6 @@ public class ClienteHandler extends Thread {
 
         if (eliminado) return 0;
 
-        // Números + modificadores (+2, +4, etc) cuentan al total
         int suma = mano.stream()
                 .filter(c -> c.getTipo() == CartaTipo.NUMERO || c.getTipo() == CartaTipo.MODIFICADOR)
                 .mapToInt(Carta::getValor)
@@ -419,6 +432,10 @@ public class ClienteHandler extends Thread {
 
     public int getPuntosTotales() {
         return puntosTotales;
+    }
+
+    public void reiniciarPuntuacion() {
+        puntosTotales = 0;
     }
 
     public List<Carta> getMano() {
@@ -441,12 +458,12 @@ public class ClienteHandler extends Thread {
 
     private void cerrarConexion() {
         try {
-            if (salaActual != null) salaActual.removerJugador(this);
+            if (salaActual != null) {
+                salaActual.agregarLog(nombre + " se ha desconectado. Puede volver a unirse escribiendo el nombre de la sala de nuevo.");
+                salaActual.removerJugador(this);
+            }
             ServidorFlip7.removerCliente(this);
             socket.close();
         } catch (IOException ignored) {}
-    }
-    public void reiniciarPuntuacion() {
-        puntosTotales = 0;
     }
 }

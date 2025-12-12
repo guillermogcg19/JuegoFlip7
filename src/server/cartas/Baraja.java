@@ -44,7 +44,7 @@ public class Baraja {
         mazo.add(new Carta(CartaTipo.MODIFICADOR, 10, "+10"));
         mazo.add(new Carta(CartaTipo.MODIFICADOR, 0, "x2"));
 
-        // Cartas de accion: Freeze, Flip Three, Second Chance
+        // Acciones
         for (int i = 0; i < 3; i++) {
             mazo.add(new Carta(CartaTipo.ACCION, 0, "Freeze"));
             mazo.add(new Carta(CartaTipo.ACCION, 0, "Flip Three"));
